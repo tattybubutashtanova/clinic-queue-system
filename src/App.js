@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from './components/common/Navbar';
+import Footer from './components/common/Footer';
 import HelpModal from './components/common/HelpModal';
 import Home from './components/Home';
 import Login from './components/Login';
@@ -90,6 +91,8 @@ function App() {
         isOpen={isHelpModalOpen} 
         onClose={closeHelpModal} 
       />
+      
+      <Footer />
     </div>
   );
 }

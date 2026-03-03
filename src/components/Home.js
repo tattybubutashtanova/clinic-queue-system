@@ -135,15 +135,15 @@ function Home() {
         animate="visible"
       >
         <motion.div variants={itemVariants} className="stat-item">
-          <div className="stat-number">500+</div>
+          <div className="stat-number">80+</div>
           <div className="stat-label">Daily Patients</div>
         </motion.div>
         <motion.div variants={itemVariants} className="stat-item">
-          <div className="stat-number">15</div>
+          <div className="stat-number">number of</div>
           <div className="stat-label">Departments</div>
         </motion.div>
         <motion.div variants={itemVariants} className="stat-item">
-          <div className="stat-number">50+</div>
+          <div className="stat-number">number of</div>
           <div className="stat-label">Medical Staff</div>
         </motion.div>
       </motion.div>
