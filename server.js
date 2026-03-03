@@ -1,20 +1,21 @@
 const express = require("express");
 const cors = require("cors");
-const app = express();
 const path = require("path");
+
+const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// In-memory storage (will be replaced with Supabase)
+// In-memory storage (simple and reliable)
 let patients = [];
 let doctors = [];
 let timeSlots = [];
 let appointments = [];
 
-// Initialize default time slots
-const initializeTimeSlots = () => {
+// Initialize default data
+const initializeData = () => {
   const departments = ["General", "Pediatrics", "Dentistry"];
   const timeRanges = [
     "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -29,14 +30,17 @@ const initializeTimeSlots = () => {
         time,
         day: new Date().toISOString().slice(0, 10),
         isAvailable: true,
-        maxPatients: 4, // 4 patients per 30-minute slot
+        maxPatients: 4,
         currentBookings: 0
       });
     });
   });
+  
+  console.log('📋 Initialized in-memory storage');
+  console.log(`⏰ Created ${timeSlots.length} time slots`);
 };
 
-initializeTimeSlots();
+initializeData();
 
 // Utility functions
 const generateQueueNumber = (department, day) => {
@@ -56,24 +60,29 @@ const calculatePosition = (patientId, department, day) => {
   return departmentPatients.filter(p => p.queueNumber <= patient.queueNumber).length;
 };
 
+// API routes
 // Authentication endpoints
 app.post("/api/login-doctor", (req, res) => {
-  const { username, password, department } = req.body;
-  
-  // For demo purposes - in production, use Supabase Auth
-  if (username === "doctor" && password === "1234") {
-    const doctor = {
-      id: 1,
-      name: "Dr. John Doe",
-      department: department || "General",
-      email: "doctor@narynclinic.kg"
-    };
-    res.json({ 
-      success: true, 
-      doctor
-    });
-  } else {
-    res.status(401).json({ success: false, message: "Invalid credentials" });
+  try {
+    const { username, password, department } = req.body;
+    
+    // For demo purposes - in production, use email instead of username
+    if (username === "doctor" && password === "1234") {
+      const doctor = {
+        id: 1,
+        name: "Dr. John Doe",
+        department: department || "General",
+        email: "doctor@clinic.kg"
+      };
+      res.json({ 
+        success: true, 
+        doctor
+      });
+    } else {
+      res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Login failed" });
   }
 });
 
@@ -86,15 +95,12 @@ app.get("/api/timeslots", (req, res) => {
     if (day) {
       filteredSlots = filteredSlots.filter(s => s.day === day);
     }
-    
+
     if (department) {
       filteredSlots = filteredSlots.filter(s => s.department === department);
     }
 
-    res.json({
-      success: true,
-      timeSlots: filteredSlots
-    });
+    res.json({ success: true, timeSlots: filteredSlots });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to fetch time slots" });
   }
@@ -102,19 +108,21 @@ app.get("/api/timeslots", (req, res) => {
 
 app.post("/api/timeslots", (req, res) => {
   try {
-    const { department, time, day, maxPatients } = req.body;
+    const { department, time, day, maxPatients = 4 } = req.body;
     
     const newSlot = {
-      id: Date.now(),
+      id: Date.now() + Math.random(),
       department,
       time,
       day,
+      maxPatients,
+      currentBookings: 0,
       isAvailable: true,
-      maxPatients: maxPatients || 4,
-      currentBookings: 0
+      created_at: new Date().toISOString()
     };
-
+    
     timeSlots.push(newSlot);
+    
     res.json({ success: true, timeSlot: newSlot });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to create time slot" });
@@ -123,19 +131,18 @@ app.post("/api/timeslots", (req, res) => {
 
 app.put("/api/timeslots/:id", (req, res) => {
   try {
-    const slotIndex = timeSlots.findIndex(s => s.id === parseInt(req.params.id));
+    const { id } = req.params;
+    const updates = req.body;
+    
+    const slotIndex = timeSlots.findIndex(s => s.id === id);
     
     if (slotIndex === -1) {
       return res.status(404).json({ success: false, message: "Time slot not found" });
     }
-
-    const updatedSlot = {
-      ...timeSlots[slotIndex],
-      ...req.body
-    };
-
-    timeSlots[slotIndex] = updatedSlot;
-    res.json({ success: true, timeSlot: updatedSlot });
+    
+    timeSlots[slotIndex] = { ...timeSlots[slotIndex], ...updates, updated_at: new Date().toISOString() };
+    
+    res.json({ success: true, timeSlot: timeSlots[slotIndex] });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to update time slot" });
   }
@@ -143,80 +150,83 @@ app.put("/api/timeslots/:id", (req, res) => {
 
 app.delete("/api/timeslots/:id", (req, res) => {
   try {
-    const slotIndex = timeSlots.findIndex(s => s.id === parseInt(req.params.id));
+    const { id } = req.params;
+    
+    const slotIndex = timeSlots.findIndex(s => s.id === id);
     
     if (slotIndex === -1) {
       return res.status(404).json({ success: false, message: "Time slot not found" });
     }
-
+    
     timeSlots.splice(slotIndex, 1);
-    res.json({ success: true });
+    
+    res.json({ success: true, message: "Time slot deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to delete time slot" });
   }
 });
 
-// Patient endpoints (updated for time slot booking)
+// Patient endpoints
 app.post("/api/register-patient", (req, res) => {
   try {
     const { name, department, time, day, phone, email, timeSlotId } = req.body;
     
-    // Validate required fields
-    if (!name || !department || !day || !timeSlotId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Name, department, day, and time slot are required" 
-      });
+    // Check if time slot exists and is available
+    const slot = timeSlots.find(s => s.id === timeSlotId);
+    
+    if (!slot) {
+      return res.status(400).json({ success: false, message: "Time slot not found" });
     }
-
-    // Check if time slot is available
-    const timeSlot = timeSlots.find(s => s.id === timeSlotId);
-    if (!timeSlot || !timeSlot.isAvailable || timeSlot.currentBookings >= timeSlot.maxPatients) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Time slot is not available" 
-      });
+    
+    if (!slot.isAvailable || slot.currentBookings >= slot.maxPatients) {
+      return res.status(400).json({ success: false, message: "Time slot is not available" });
     }
-
+    
+    // Generate queue number
     const queueNumber = generateQueueNumber(department, day);
+    
+    // Create patient
     const patient = {
-      id: Date.now(),
-      name: name.trim(),
+      id: Date.now() + Math.random(),
+      name,
       department,
       time,
       day,
-      phone: phone || "",
-      email: email || "",
+      phone,
+      email,
       timeSlotId,
       queueNumber,
       status: "Waiting",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      created_at: new Date().toISOString()
     };
-
+    
     patients.push(patient);
-
-    // Update time slot booking count
-    timeSlot.currentBookings++;
-    if (timeSlot.currentBookings >= timeSlot.maxPatients) {
-      timeSlot.isAvailable = false;
-    }
-
-    res.json({
-      success: true,
+    
+    // Update time slot
+    slot.currentBookings += 1;
+    slot.isAvailable = slot.currentBookings < slot.maxPatients;
+    
+    // Create appointment
+    const appointment = {
+      id: Date.now() + Math.random(),
+      patientId: patient.id,
+      doctorId: null,
+      timeSlotId: timeSlotId,
+      status: "Scheduled",
+      created_at: new Date().toISOString()
+    };
+    
+    appointments.push(appointment);
+    
+    res.json({ 
+      success: true, 
       patient: {
-        id: patient.id,
-        queueNumber: patient.queueNumber,
-        position: calculatePosition(patient.id, department, day),
-        status: patient.status,
-        timeSlot: {
-          time: timeSlot.time,
-          department: timeSlot.department
-        }
+        ...patient,
+        timeSlot: slot
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Registration failed" });
+    res.status(500).json({ success: false, message: "Failed to register patient" });
   }
 });
 
@@ -228,29 +238,24 @@ app.get("/api/patients", (req, res) => {
     if (day) {
       filteredPatients = filteredPatients.filter(p => p.day === day);
     }
-    
+
     if (department) {
       filteredPatients = filteredPatients.filter(p => p.department === department);
     }
-    
+
     if (status) {
       filteredPatients = filteredPatients.filter(p => p.status === status);
     }
 
-    // Sort by time and queue number
+    // Sort by queue number and time
     filteredPatients.sort((a, b) => {
-      if (a.time !== b.time) return a.time.localeCompare(b.time);
-      return a.queueNumber - b.queueNumber;
+      if (a.queueNumber !== b.queueNumber) {
+        return a.queueNumber - b.queueNumber;
+      }
+      return a.time.localeCompare(b.time);
     });
 
-    res.json({
-      success: true,
-      patients: filteredPatients.map(p => ({
-        ...p,
-        position: calculatePosition(p.id, p.department, p.day),
-        timeSlot: timeSlots.find(s => s.id === p.timeSlotId)
-      }))
-    });
+    res.json({ success: true, patients: filteredPatients });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to fetch patients" });
   }
@@ -258,7 +263,7 @@ app.get("/api/patients", (req, res) => {
 
 app.get("/api/patients/:id", (req, res) => {
   try {
-    const patient = patients.find(p => p.id === parseInt(req.params.id));
+    const patient = patients.find(p => p.id === req.params.id);
     
     if (!patient) {
       return res.status(404).json({ success: false, message: "Patient not found" });
@@ -279,26 +284,23 @@ app.get("/api/patients/:id", (req, res) => {
 
 app.put("/api/patients/:id", (req, res) => {
   try {
-    const patientIndex = patients.findIndex(p => p.id === parseInt(req.params.id));
+    const { id } = req.params;
+    const updates = req.body;
+    
+    const patientIndex = patients.findIndex(p => p.id === id);
     
     if (patientIndex === -1) {
       return res.status(404).json({ success: false, message: "Patient not found" });
     }
 
-    const updatedPatient = {
-      ...patients[patientIndex],
-      ...req.body,
-      updatedAt: new Date().toISOString()
-    };
-
-    patients[patientIndex] = updatedPatient;
+    patients[patientIndex] = { ...patients[patientIndex], ...updates, updated_at: new Date().toISOString() };
 
     res.json({
       success: true,
       patient: {
-        ...updatedPatient,
-        position: calculatePosition(updatedPatient.id, updatedPatient.department, updatedPatient.day),
-        timeSlot: timeSlots.find(s => s.id === updatedPatient.timeSlotId)
+        ...patients[patientIndex],
+        position: calculatePosition(patients[patientIndex].id, patients[patientIndex].department, patients[patientIndex].day),
+        timeSlot: timeSlots.find(s => s.id === patients[patientIndex].timeSlotId)
       }
     });
   } catch (error) {
@@ -316,87 +318,40 @@ app.post("/api/call-next", (req, res) => {
     }
 
     let nextPatient = patients.find(p => 
-      p.status === "Waiting" && 
-      p.day === day &&
-      (!department || p.department === department)
+      p.day === day && 
+      p.department === department && 
+      (p.status === "Waiting" || p.status === "In Progress")
     );
 
-    if (nextPatient) {
-      nextPatient.status = "In Progress";
-      nextPatient.updatedAt = new Date().toISOString();
+    if (!nextPatient) {
+      return res.json({ success: false, message: "No patients in queue" });
     }
 
-    res.json({
-      success: true,
-      patient: nextPatient ? {
-        ...nextPatient,
-        position: calculatePosition(nextPatient.id, nextPatient.department, nextPatient.day),
-        timeSlot: timeSlots.find(s => s.id === nextPatient.timeSlotId)
-      } : null
-    });
+    // Update patient status to "In Progress"
+    nextPatient.status = "In Progress";
+    nextPatient.updated_at = new Date().toISOString();
+
+    res.json({ success: true, patient: nextPatient });
   } catch (error) {
     res.status(500).json({ success: false, message: "Failed to call next patient" });
   }
 });
 
-app.post("/api/complete-patient/:id", (req, res) => {
-  try {
-    const patient = patients.find(p => p.id === parseInt(req.params.id));
-    
-    if (!patient) {
-      return res.status(404).json({ success: false, message: "Patient not found" });
-    }
-
-    patient.status = "Completed";
-    patient.updatedAt = new Date().toISOString();
-
-    res.json({
-      success: true,
-      patient: {
-        ...patient,
-        position: calculatePosition(patient.id, patient.department, patient.day),
-        timeSlot: timeSlots.find(s => s.id === patient.timeSlotId)
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Failed to complete patient" });
-  }
-});
-
-// Department endpoints
-app.get("/api/departments", (req, res) => {
-  res.json({
-    success: true,
-    departments: [
-      { id: "general", name: "General", description: "General medical consultation" },
-      { id: "pediatrics", name: "Pediatrics", description: "Child healthcare" },
-      { id: "dentistry", name: "Dentistry", description: "Dental care and oral surgery" }
-    ]
-  });
-});
-
-// Statistics endpoints
+// Statistics endpoint
 app.get("/api/stats", (req, res) => {
   try {
     const { day } = req.query;
     const targetDay = day || new Date().toISOString().slice(0, 10);
     
     const dayPatients = patients.filter(p => p.day === targetDay);
-    
     const stats = {
       totalPatients: dayPatients.length,
       waitingPatients: dayPatients.filter(p => p.status === "Waiting").length,
       inProgressPatients: dayPatients.filter(p => p.status === "In Progress").length,
       completedPatients: dayPatients.filter(p => p.status === "Completed").length,
-      departmentStats: {},
-      timeSlotStats: {
-        totalSlots: timeSlots.filter(s => s.day === targetDay).length,
-        availableSlots: timeSlots.filter(s => s.day === targetDay && s.isAvailable).length,
-        bookedSlots: timeSlots.filter(s => s.day === targetDay && !s.isAvailable).length
-      }
+      departmentStats: {}
     };
 
-    // Calculate department-wise stats
     const departments = ["General", "Pediatrics", "Dentistry"];
     departments.forEach(dept => {
       const deptPatients = dayPatients.filter(p => p.department === dept);
@@ -423,7 +378,7 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Serve React static files in production
+// Static file serving (after API routes)
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'build')));
   
@@ -433,17 +388,17 @@ if (process.env.NODE_ENV === 'production') {
 } else {
   // In development, serve static files from public directory
   app.use(express.static(path.join(__dirname, "public")));
+  
+  // Serve index.html for specific React routes only
+  app.get(['/', '/login', '/register', '/doctor', '/patient'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  });
 }
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ success: false, message: "Internal server error" });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: "Endpoint not found" });
 });
 
 const PORT = process.env.PORT || 3000;
