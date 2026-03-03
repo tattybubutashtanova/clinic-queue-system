@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Doctor Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+<h2 id="title">Doctor Dashboard</h2>
+
+<label id="lbl-day">Day:</label>
+<input type="date" id="day" value=""><br>
+
+<button onclick="loadPatients()" id="btn-load">Load Patients</button>
+<button onclick="callNext()" id="btn-next">Call Next</button>
+<button onclick="switchLanguage()" class="lang">Switch Language</button>
+
+<div id="patients"></div>
+</div>
+
+<script>
+let lang="en";
+const texts={
+en:["Doctor Dashboard","Day:","Load Patients","Call Next","Switch Language"],
+ru:["Панель врача","День:","Загрузить пациентов","Следующий","Сменить язык"],
+kg:["Дарыгер панели","Күн:","Пациенттерди жүктөө","Кийинкиси","Тилди өзгөртүү"]
+};
+
+function switchLanguage(){
+  lang = lang==="en"?"ru":lang==="ru"?"kg":"en";
+  document.getElementById("title").innerText = texts[lang][0];
+  document.getElementById("lbl-day").innerText = texts[lang][1];
+  document.getElementById("btn-load").innerText = texts[lang][2];
+  document.getElementById("btn-next").innerText = texts[lang][3];
+  document.querySelector("button.lang").innerText = texts[lang][4];
+}
+
+function loadPatients(){
+  const day = document.getElementById("day").value || new Date().toISOString().slice(0,10);
+  fetch("/api/patients?day="+day)
+    .then(res=>res.json())
+    .then(patients=>{
+      const div=document.getElementById("patients");
+      div.innerHTML="";
+      patients.sort((a,b)=>a.time.localeCompare(b.time));
+      patients.forEach(p=>{
+        const statusClass="status-"+p.status.replace(/\s/g,'');
+        div.innerHTML+=`
+          <div class="card ${statusClass}">
+            <strong>${p.name}</strong><br>
+            Department: ${p.department}<br>
+            Time: ${p.time}<br>
+            Queue #: ${p.queueNumber}<br>
+            Status: ${p.status}
+          </div>`;
+      });
+    });
+}
+
+function callNext(){
+  const day = document.getElementById("day").value || new Date().toISOString().slice(0,10);
+  fetch("/api/call-next",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({day})
+  }).then(()=>loadPatients());
+}
+
+setInterval(loadPatients,3000);
+</script>
+</body>
+</html>
