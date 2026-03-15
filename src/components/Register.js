@@ -45,7 +45,8 @@ function Register() {
         day: formData.day,
         department: formData.department
       });
-      setTimeSlots(data.timeSlots || []);
+      const sortedSlots = sortPatientsByTime(data.timeSlots || []);
+      setTimeSlots(sortedSlots);
     } catch (err) {
       console.error('Failed to load time slots:', err);
     } finally {
