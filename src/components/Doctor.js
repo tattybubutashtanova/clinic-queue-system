@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import apiService from '../services/api';
-import { useLanguage } from '../hooks/useLanguage';
+import { useLanguageContext } from '../contexts/LanguageContext';
 import { useInterval } from '../hooks/useInterval';
 import { getText, getCurrentDate, sortPatientsByTime } from '../utils/helpers';
-import { UPDATE_INTERVAL, STATUS_COLORS, DEPARTMENTS } from '../utils/constants';
-import { Calendar, Clock, Users, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight } from 'lucide-react';
+import { UPDATE_INTERVAL, STATUS_COLORS, DEPARTMENTS, DEPARTMENT_TRANSLATIONS } from '../utils/constants';
+import { Calendar, Clock, Users, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, X } from 'lucide-react';
 
 function Doctor() {
-  const { language, switchLanguage } = useLanguage();
+  const { language, switchLanguage } = useLanguageContext();
   const [day, setDay] = useState(getCurrentDate());
   const [patients, setPatients] = useState([]);
   const [timeSlots, setTimeSlots] = useState([]);
@@ -17,6 +17,10 @@ function Doctor() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('patients');
   const [showSlotForm, setShowSlotForm] = useState(false);
+  const [newSlotData, setNewSlotData] = useState({
+    time: '09:00',
+    maxPatients: 4
+  });
   const [doctorInfo, setDoctorInfo] = useState(null);
 
   // Load doctor info from localStorage
@@ -27,8 +31,8 @@ function Doctor() {
     }
   }, []);
 
-  const loadPatients = async () => {
-    setLoading(true);
+  const loadPatients = async (silent = false) => {
+    if (!silent) setLoading(true);
     setError('');
     
     try {
@@ -41,12 +45,12 @@ function Doctor() {
     } catch (err) {
       setError(err.message || 'Failed to load patients');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
-  const loadTimeSlots = async () => {
-    setLoadingSlots(true);
+  const loadTimeSlots = async (silent = false) => {
+    if (!silent) setLoadingSlots(true);
     try {
       const data = await apiService.getTimeSlots({
         day,
@@ -56,7 +60,32 @@ function Doctor() {
     } catch (err) {
       console.error('Failed to load time slots:', err);
     } finally {
-      setLoadingSlots(false);
+      if (!silent) setLoadingSlots(false);
+    }
+  };
+
+  const handleCreateSlot = async (e) => {
+    e.preventDefault();
+    try {
+      await apiService.createTimeSlot({
+        ...newSlotData,
+        day,
+        department: doctorInfo?.department
+      });
+      setShowSlotForm(false);
+      await loadTimeSlots();
+    } catch (err) {
+      setError(err.message || 'Failed to create time slot');
+    }
+  };
+
+  const handleDeleteSlot = async (slotId) => {
+    if (!window.confirm(getText(language, 'confirmDeleteSlot'))) return;
+    try {
+      await apiService.deleteTimeSlot(slotId);
+      await loadTimeSlots();
+    } catch (err) {
+      setError(err.message || 'Failed to delete time slot');
     }
   };
 
@@ -75,7 +104,7 @@ function Doctor() {
   const toggleSlotAvailability = async (slotId, currentStatus) => {
     try {
       await apiService.updateTimeSlot(slotId, {
-        is_available: !currentStatus
+        isAvailable: !currentStatus
       });
       await loadTimeSlots(); // Reload slots after update
     } catch (err) {
@@ -114,14 +143,14 @@ function Doctor() {
 
   useInterval(() => {
     if (doctorInfo) {
-      loadPatients();
-      loadTimeSlots();
+      loadPatients(true);
+      loadTimeSlots(true);
     }
   }, UPDATE_INTERVAL);
 
   const getSlotStatusColor = (slot) => {
-    if (!slot.is_available) return 'status-closed';
-    if (slot.current_bookings >= slot.max_patients) return 'status-full';
+    if (!slot.isAvailable) return 'status-closed';
+    if (slot.currentBookings >= slot.maxPatients) return 'status-full';
     return 'status-open';
   };
 
@@ -147,7 +176,9 @@ function Doctor() {
           {doctorInfo && (
             <div className="doctor-details">
               <span className="doctor-name">{doctorInfo.name}</span>
-              <span className="doctor-department">{doctorInfo.department}</span>
+              <span className="doctor-department">
+                {DEPARTMENT_TRANSLATIONS[language]?.[doctorInfo.department.toLowerCase()] || doctorInfo.department}
+              </span>
             </div>
           )}
         </div>
@@ -174,21 +205,20 @@ function Doctor() {
         </motion.div>
       )}
 
-      {/* Tab Navigation */}
-      <div className="tab-navigation">
+          <div className="tab-navigation">
         <button
           className={`tab-button ${activeTab === 'patients' ? 'active' : ''}`}
           onClick={() => setActiveTab('patients')}
         >
           <Users size={18} />
-          Patient Queue
+          {getText(language, 'patientRegistration')}
         </button>
         <button
           className={`tab-button ${activeTab === 'slots' ? 'active' : ''}`}
           onClick={() => setActiveTab('slots')}
         >
           <Clock size={18} />
-          Time Slots
+          {getText(language, 'availableTimeSlots')}
         </button>
       </div>
 
@@ -222,7 +252,7 @@ function Doctor() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {loading ? getText(language, 'loading') : 'Refresh Patients'}
+                {loading ? getText(language, 'loading') : getText(language, 'loadPatients')}
               </motion.button>
               
               <motion.button 
@@ -245,13 +275,14 @@ function Doctor() {
                 animate={{ opacity: 1, scale: 1 }}
               >
                 <Users size={48} />
-                <h3>No Patients Found</h3>
-                <p>No patients scheduled for {day}</p>
+                <h3>{getText(language, 'noPatientsFound')}</h3>
+                <p>{getText(language, 'noPatientsScheduled')} {day}</p>
               </motion.div>
             ) : (
               patients.map((patient, index) => (
                 <motion.div 
                   key={patient.id} 
+                  layout
                   className={`patient-card ${getPatientStatusColor(patient.status)}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -264,12 +295,14 @@ function Doctor() {
                   
                   <div className="patient-details">
                     <div className="patient-info">
-                      <span className="info-label">Queue:</span>
+                      <span className="info-label">{getText(language, 'queueNumber')}:</span>
                       <span className="info-value">#{patient.queueNumber}</span>
                     </div>
                     <div className="patient-info">
-                      <span className="info-label">Department:</span>
-                      <span className="info-value">{patient.department}</span>
+                      <span className="info-label">{getText(language, 'department')}:</span>
+                      <span className="info-value">
+                        {DEPARTMENT_TRANSLATIONS[language]?.[patient.department.toLowerCase()] || patient.department}
+                      </span>
                     </div>
                   </div>
 
@@ -285,7 +318,7 @@ function Doctor() {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        Start Consultation
+                        {getText(language, 'startConsultation')}
                       </motion.button>
                     )}
                     
@@ -296,7 +329,7 @@ function Doctor() {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        Complete
+                        {getText(language, 'complete')}
                       </motion.button>
                     )}
                   </div>
@@ -349,18 +382,36 @@ function Doctor() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
             >
-              <h4>Add New Time Slot</h4>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Time</label>
-                  <input type="time" className="form-input" />
+              <h4>{getText(language, 'addNewTimeSlot')}</h4>
+              <form onSubmit={handleCreateSlot}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">{getText(language, 'time')}</label>
+                    <input 
+                      type="time" 
+                      className="form-input" 
+                      value={newSlotData.time}
+                      onChange={(e) => setNewSlotData({...newSlotData, time: e.target.value})}
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">{getText(language, 'maxPatients')}</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      value={newSlotData.maxPatients}
+                      onChange={(e) => setNewSlotData({...newSlotData, maxPatients: parseInt(e.target.value)})}
+                      min="1" 
+                      max="10" 
+                      required 
+                    />
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Max Patients</label>
-                  <input type="number" className="form-input" defaultValue="4" min="1" max="10" />
-                </div>
-              </div>
-              <motion.button className="btn btn-primary">Add Slot</motion.button>
+                <motion.button type="submit" className="btn btn-primary" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  {getText(language, 'addSlot')}
+                </motion.button>
+              </form>
             </motion.div>
           )}
 
@@ -368,7 +419,7 @@ function Doctor() {
             {loadingSlots ? (
               <div className="loading-slots">
                 <div className="loading"></div>
-                <p>Loading time slots...</p>
+                <p>{getText(language, 'loadingTimeSlots')}</p>
               </div>
             ) : timeSlots.length === 0 ? (
               <motion.div 
@@ -377,13 +428,14 @@ function Doctor() {
                 animate={{ opacity: 1, scale: 1 }}
               >
                 <Clock size={48} />
-                <h3>No Time Slots Found</h3>
-                <p>No time slots configured for {day}</p>
+                <h3>{getText(language, 'noTimeSlotsFound')}</h3>
+                <p>{getText(language, 'noTimeSlotsConfigured')} {day}</p>
               </motion.div>
             ) : (
               timeSlots.map((slot, index) => (
                 <motion.div 
                   key={slot.id} 
+                  layout
                   className={`slot-card ${getSlotStatusColor(slot)}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -396,36 +448,48 @@ function Doctor() {
                   
                   <div className="slot-details">
                     <div className="slot-info">
-                      <span className="info-label">Bookings:</span>
-                      <span className="info-value">{slot.current_bookings}/{slot.max_patients}</span>
+                      <span className="info-label">{getText(language, 'bookings')}:</span>
+                      <span className="info-value">{slot.currentBookings}/{slot.maxPatients}</span>
                     </div>
                   </div>
 
                   <div className="slot-status">
-                    <span className={`status-indicator ${slot.is_available ? 'available' : 'unavailable'}`}>
-                      {slot.is_available ? 'Open' : 'Closed'}
+                    <span className={`status-indicator ${slot.isAvailable ? 'available' : 'unavailable'}`}>
+                      {slot.isAvailable ? getText(language, 'open') : getText(language, 'closed')}
                     </span>
                   </div>
 
                   <div className="slot-actions">
-                    <motion.button
-                      onClick={() => toggleSlotAvailability(slot.id, slot.is_available)}
-                      className={`btn btn-small ${slot.is_available ? 'btn-warning' : 'btn-success'}`}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      {slot.is_available ? (
-                        <>
-                          <ToggleLeft size={14} />
-                          Close
-                        </>
-                      ) : (
-                        <>
-                          <ToggleRight size={14} />
-                          Open
-                        </>
-                      )}
-                    </motion.button>
+                    <div className="action-buttons-group">
+                      <motion.button
+                        onClick={() => toggleSlotAvailability(slot.id, slot.isAvailable)}
+                        className={`btn btn-small ${slot.isAvailable ? 'btn-warning' : 'btn-success'}`}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        {slot.isAvailable ? (
+                          <>
+                            <ToggleLeft size={14} />
+                            {getText(language, 'close')}
+                          </>
+                        ) : (
+                          <>
+                            <ToggleRight size={14} />
+                            {getText(language, 'open')}
+                          </>
+                        )}
+                      </motion.button>
+                      <motion.button
+                        onClick={() => handleDeleteSlot(slot.id)}
+                        className="btn btn-small btn-danger"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        disabled={slot.currentBookings > 0}
+                        title={slot.currentBookings > 0 ? getText(language, 'cannotDeleteBookedSlot') : getText(language, 'deleteSlot')}
+                      >
+                        <X size={14} />
+                      </motion.button>
+                    </div>
                   </div>
                 </motion.div>
               ))

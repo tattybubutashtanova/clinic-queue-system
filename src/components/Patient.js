@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiService from '../services/api';
-import { useLanguage } from '../hooks/useLanguage';
+import { useLanguageContext } from '../contexts/LanguageContext';
 import { useInterval } from '../hooks/useInterval';
 import { getText, getCurrentDate, calculateQueuePosition, validatePatientForm } from '../utils/helpers';
 import { DEPARTMENTS, UPDATE_INTERVAL, STATUS_COLORS } from '../utils/constants';

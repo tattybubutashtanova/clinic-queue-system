@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import apiService from '../services/api';
-import { useLanguage } from '../hooks/useLanguage';
+import { useLanguageContext } from '../contexts/LanguageContext';
 import { useInterval } from '../hooks/useInterval';
 import { getText, getCurrentDate, validateLoginForm } from '../utils/helpers';
-import { DEPARTMENTS, UPDATE_INTERVAL } from '../utils/constants';
+import { DEPARTMENTS, DEPARTMENT_TRANSLATIONS, UPDATE_INTERVAL } from '../utils/constants';
 
 function Login() {
-  const { language, switchLanguage } = useLanguage();
+  const { language, switchLanguage } = useLanguageContext();
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -92,7 +92,7 @@ function Login() {
               value={formData.username}
               onChange={handleInputChange}
               disabled={loading}
-              placeholder="Enter your username"
+              placeholder={getText(language, 'enterUsername')}
             />
           </div>
           
@@ -107,13 +107,13 @@ function Login() {
               value={formData.password}
               onChange={handleInputChange}
               disabled={loading}
-              placeholder="Enter your password"
+              placeholder={getText(language, 'enterPassword')}
             />
           </div>
 
           <div className="form-group">
             <label className="form-label">
-              Department
+              {getText(language, 'department')}
             </label>
             <select
               name="department"
@@ -121,10 +121,17 @@ function Login() {
               value={formData.department}
               onChange={handleInputChange}
               disabled={loading}
+              key={language}
             >
-              {DEPARTMENTS.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
+              {DEPARTMENTS.map(dept => {
+                const translationKey = dept.toLowerCase();
+                const translation = DEPARTMENT_TRANSLATIONS[language]?.[translationKey];
+                return (
+                  <option key={dept} value={dept}>
+                    {translation || dept}
+                  </option>
+                );
+              })}
             </select>
           </div>
           
@@ -163,9 +170,9 @@ function Login() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            <p>Demo Credentials:</p>
-            <p>Username: <strong>doctor</strong></p>
-            <p>Password: <strong>1234</strong></p>
+            <p>{getText(language, 'demoCredentials')}:</p>
+            <p>{getText(language, 'username')}: <strong>{getText(language, 'demoUsername')}</strong></p>
+            <p>{getText(language, 'password')}: <strong>{getText(language, 'demoPassword')}</strong></p>
           </motion.div>
         </div>
       </motion.div>

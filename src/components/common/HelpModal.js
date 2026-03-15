@@ -1,11 +1,11 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Phone, Mail, MapPin, Clock, MessageCircle } from 'lucide-react';
-import { useLanguage } from '../../hooks/useLanguage';
+import { useLanguageContext } from '../../contexts/LanguageContext';
 import { getText } from '../../utils/helpers';
 
 const HelpModal = ({ isOpen, onClose }) => {
-  const { language } = useLanguage();
+  const { language } = useLanguageContext();
 
   const contactInfo = {
     phone: '+996 (312) 123-456',

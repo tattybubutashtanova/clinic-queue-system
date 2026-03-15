@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Users, Stethoscope, Clock, Shield, Calendar } from 'lucide-react';
+import { useLanguageContext } from '../contexts/LanguageContext';
 import { getText } from '../utils/helpers';
 
 const containerVariants = {
@@ -29,6 +30,8 @@ const itemVariants = {
 };
 
 function Home() {
+  const { language } = useLanguageContext();
+  
   return (
     <motion.div 
       className="container text-center"
@@ -54,14 +57,14 @@ function Home() {
           className="main-title"
           variants={itemVariants}
         >
-          {getText('en', 'title')}
+          {getText(language, 'title')}
         </motion.h1>
         
         <motion.p 
           className="subtitle"
           variants={itemVariants}
         >
-          Professional appointment scheduling and queue management
+          {getText(language, 'subtitle')}
         </motion.p>
       </motion.div>
 
@@ -78,8 +81,8 @@ function Home() {
           >
             <Users size={40} />
           </motion.div>
-          <h3>Book Appointment</h3>
-          <p>Schedule your visit with available time slots</p>
+          <h3>{getText(language, 'register')}</h3>
+          <p>{getText(language, 'subtitle')}</p>
         </motion.div>
 
         <motion.div variants={itemVariants} className="feature-card">
@@ -90,8 +93,8 @@ function Home() {
           >
             <Stethoscope size={40} />
           </motion.div>
-          <h3>Doctor Portal</h3>
-          <p>Manage appointments and patient queues</p>
+          <h3>{getText(language, 'doctorPortal')}</h3>
+          <p>{getText(language, 'manageAppointments')}</p>
         </motion.div>
 
         <motion.div variants={itemVariants} className="feature-card">
@@ -102,8 +105,8 @@ function Home() {
           >
             <Shield size={40} />
           </motion.div>
-          <h3>Secure & Reliable</h3>
-          <p>Professional healthcare management system</p>
+          <h3>{getText(language, 'secureReliable')}</h3>
+          <p>{getText(language, 'professionalHealthcare')}</p>
         </motion.div>
       </motion.div>
 
@@ -115,14 +118,14 @@ function Home() {
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
           <Link to="/register" className="btn btn-primary">
             <Users size={20} />
-            Book Appointment
+            {getText(language, 'register')}
           </Link>
         </motion.div>
 
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
           <Link to="/login" className="btn btn-secondary">
             <Stethoscope size={20} />
-            Doctor Login
+            {getText(language, 'doctorLogin')}
           </Link>
         </motion.div>
       </motion.div>
@@ -136,15 +139,15 @@ function Home() {
       >
         <motion.div variants={itemVariants} className="stat-item">
           <div className="stat-number">80+</div>
-          <div className="stat-label">Daily Patients</div>
+          <div className="stat-label">{getText(language, 'dailyPatients')}</div>
         </motion.div>
         <motion.div variants={itemVariants} className="stat-item">
           <div className="stat-number">number of</div>
-          <div className="stat-label">Departments</div>
+          <div className="stat-label">{getText(language, 'departments')}</div>
         </motion.div>
         <motion.div variants={itemVariants} className="stat-item">
           <div className="stat-number">number of</div>
-          <div className="stat-label">Medical Staff</div>
+          <div className="stat-label">{getText(language, 'medicalStaff')}</div>
         </motion.div>
       </motion.div>
     </motion.div>

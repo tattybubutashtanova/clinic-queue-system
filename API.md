@@ -39,10 +39,19 @@ All API responses follow this format:
 
 ## 🔐 Authentication
 
+### Mock Doctor Credentials
+For testing and development, you can use the following mock doctor account:
+
+- **Username**: `doctor`
+- **Password**: `1234`
+- **Department**: `General` (or select from dropdown)
+
 ### Doctor Login
 Authenticate doctors to access the dashboard.
 
 **Endpoint**: `POST /api/login-doctor`
+
+**Authentication**: Required (Bearer Token) for all subsequent doctor endpoints.
 
 **Request Body**:
 ```json
@@ -57,8 +66,9 @@ Authenticate doctors to access the dashboard.
 ```json
 {
   "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "doctor": {
-    "id": 1,
+    "id": "doc1",
     "name": "Dr. John Doe",
     "department": "General",
     "email": "doctor@clinic.kg"

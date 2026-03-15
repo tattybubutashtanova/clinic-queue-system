@@ -1,8 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin, Clock, Heart } from 'lucide-react';
+import { useLanguageContext } from '../../contexts/LanguageContext';
+import { getText } from '../../utils/helpers';
 
 function Footer() {
+  const { language } = useLanguageContext();
+  
   return (
     <motion.footer 
       className="footer"
@@ -13,46 +17,46 @@ function Footer() {
       <div className="footer-container">
         <div className="footer-content">
           <div className="footer-section">
-            <h3>Clinic Queue System</h3>
-            <p>Professional healthcare management for modern clinics</p>
-            <div className="footer-contact">
+            <h3>{getText(language, 'clinicName')}</h3>
+            <p>{getText(language, 'clinicDescription')}</p>
+            <div className="contact-info">
               <div className="contact-item">
                 <Phone size={16} />
-                <span>+996 (312) 123-456</span>
+                <span>{getText(language, 'phone')}: +996 (312) 123-456</span>
               </div>
               <div className="contact-item">
                 <Mail size={16} />
-                <span>info@clinic.kg</span>
+                <span>{getText(language, 'email')}: info@clinic.kg</span>
               </div>
               <div className="contact-item">
                 <MapPin size={16} />
-                <span>Bishkek, Kyrgyzstan</span>
+                <span>{getText(language, 'address')}: Bishkek, Kyrgyzstan</span>
               </div>
             </div>
           </div>
 
           <div className="footer-section">
-            <h4>Quick Links</h4>
+            <h4>{getText(language, 'quickLinks')}</h4>
             <ul className="footer-links">
-              <li><a href="/">Home</a></li>
-              <li><a href="/register">Book Appointment</a></li>
-              <li><a href="/login">Doctor Login</a></li>
+              <li><a href="/">{getText(language, 'home')}</a></li>
+              <li><a href="/register">{getText(language, 'register')}</a></li>
+              <li><a href="/login">{getText(language, 'doctorLogin')}</a></li>
             </ul>
           </div>
 
           <div className="footer-section">
-            <h4>Working Hours</h4>
+            <h4>{getText(language, 'workingHours')}</h4>
             <div className="hours-item">
               <Clock size={16} />
-              <span>Mon-Fri: 8:00 AM - 6:00 PM</span>
+              <span>{getText(language, 'mondayFriday')}</span>
             </div>
             <div className="hours-item">
               <Clock size={16} />
-              <span>Sat: 9:00 AM - 2:00 PM</span>
+              <span>{getText(language, 'saturday')}</span>
             </div>
             <div className="hours-item">
               <Clock size={16} />
-              <span>Sunday: Closed</span>
+              <span>{getText(language, 'sunday')}</span>
             </div>
           </div>
         </div>

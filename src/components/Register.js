@@ -2,13 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import apiService from '../services/api';
-import { useLanguage } from '../hooks/useLanguage';
+import { useLanguageContext } from '../contexts/LanguageContext';
 import { useInterval } from '../hooks/useInterval';
 import { getText, getCurrentDate, validatePatientForm } from '../utils/helpers';
-import { DEPARTMENTS, UPDATE_INTERVAL } from '../utils/constants';
+import { DEPARTMENTS, DEPARTMENT_TRANSLATIONS, UPDATE_INTERVAL } from '../utils/constants';
 
 function Register() {
-  const { language, switchLanguage } = useLanguage();
+  const { language, switchLanguage } = useLanguageContext();
+  console.log('Register component - Current language:', language);
+  console.log('Available translations:', DEPARTMENT_TRANSLATIONS);
+  console.log('DEPARTMENTS array:', DEPARTMENTS);
+  
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -55,15 +59,24 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('HandleSubmit triggered');
     
     if (!selectedSlot) {
       setError('Please select a time slot');
       return;
     }
 
-    const validation = validatePatientForm(formData);
+    const validation = validatePatientForm({
+      ...formData,
+      time: selectedSlot?.time
+    });
     if (!validation.isValid) {
       setError(Object.values(validation.errors)[0]);
+      return;
+    }
+
+    if (!formData.name || !formData.phone || !formData.day || !formData.department) {
+      setError('Please fill in all mandatory fields');
       return;
     }
 
@@ -73,16 +86,23 @@ function Register() {
 
     try {
       const patientData = {
-        ...formData,
+        name: formData.name,
+        department: formData.department,
+        phone: formData.phone,
+        email: formData.email,
+        day: formData.day,
         time: selectedSlot.time,
         timeSlotId: selectedSlot.id
       };
 
+      console.log('Sending registration data:', patientData);
       const data = await apiService.registerPatient(patientData);
+      console.log('Registration response:', data);
       
       if (data.success) {
         setRegisteredPatient(data.patient);
         setSuccess('Appointment booked successfully!');
+        setError('');
         // Clear form
         setFormData({
           name: '',
@@ -92,8 +112,14 @@ function Register() {
           day: getCurrentDate()
         });
         setSelectedSlot(null);
+        
+        // Refresh slots to show updated availability
+        loadTimeSlots();
+      } else {
+        setError(data.message || 'Registration failed');
       }
     } catch (err) {
+      console.error('Registration error:', err);
       setError(err.message || 'Registration failed');
     } finally {
       setLoading(false);
@@ -162,7 +188,8 @@ function Register() {
               value={formData.name}
               onChange={handleInputChange}
               disabled={loading}
-              placeholder="Enter your full name"
+              placeholder={getText(language, 'fullName')}
+              required
             />
           </div>
 
@@ -176,16 +203,26 @@ function Register() {
               value={formData.department}
               onChange={handleInputChange}
               disabled={loading}
+              key={language} // Force re-render when language changes
+              required
             >
-              {DEPARTMENTS.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
+              {DEPARTMENTS.map(dept => {
+                // Map the department name to its translation key (e.g., 'General' -> 'general')
+                const translationKey = dept.toLowerCase();
+                const translation = DEPARTMENT_TRANSLATIONS[language]?.[translationKey];
+                
+                return (
+                  <option key={dept} value={dept}>
+                    {translation || dept}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
           <div className="form-group">
             <label className="form-label">
-              Phone Number
+              {getText(language, 'phone')}
             </label>
             <input
               type="tel"
@@ -194,13 +231,14 @@ function Register() {
               value={formData.phone}
               onChange={handleInputChange}
               disabled={loading}
-              placeholder="Enter your phone number"
+              placeholder={getText(language, 'phone')}
+              required
             />
           </div>
 
           <div className="form-group">
             <label className="form-label">
-              Email Address
+              {getText(language, 'email')}
             </label>
             <input
               type="email"
@@ -209,7 +247,7 @@ function Register() {
               value={formData.email}
               onChange={handleInputChange}
               disabled={loading}
-              placeholder="Enter your email address"
+              placeholder={getText(language, 'email')}
             />
           </div>
 
@@ -225,72 +263,74 @@ function Register() {
               onChange={handleInputChange}
               disabled={loading}
               min={getCurrentDate()}
+              required
             />
           </div>
+
+          {/* Time Slots Section inside the form */}
+          <div className="time-slots-section">
+            <h3>{getText(language, 'availableTimeSlots')}</h3>
+            
+            {loadingSlots ? (
+              <div className="loading-slots">
+                <div className="loading"></div>
+                <p>{getText(language, 'loadingTimeSlots')}</p>
+              </div>
+            ) : (
+              <div className="time-slots-grid">
+                {timeSlots.map(slot => {
+                  const status = getSlotStatus(slot);
+                  const isSelected = selectedSlot?.id === slot.id;
+                  
+                  return (
+                    <motion.div
+                      key={slot.id}
+                      className={`time-slot ${getSlotStatusColor(status)} ${isSelected ? 'selected' : ''}`}
+                      whileHover={{ scale: status === 'available' ? 1.02 : 1 }}
+                      whileTap={{ scale: status === 'available' ? 0.98 : 1 }}
+                      onClick={() => status === 'available' && setSelectedSlot(slot)}
+                    >
+                      <div className="slot-time">{slot.time}</div>
+                      <div className="slot-status">
+                        {status === 'available' && `${slot.maxPatients - slot.currentBookings} spots left`}
+                        {status === 'full' && 'Full'}
+                        {status === 'booked' && 'Booked'}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+
+            {selectedSlot && (
+              <motion.div 
+                className="selected-slot-info"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <p>Selected: <strong>{selectedSlot.time}</strong></p>
+              </motion.div>
+            )}
+          </div>
+
+          <motion.button 
+            type="submit" 
+            className="btn"
+            disabled={loading || !selectedSlot}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            style={{ marginTop: '20px', width: '100%' }}
+          >
+            {loading ? (
+              <span className="loading-inline">
+                <span className="loading"></span>
+                {getText(language, 'loading')}
+              </span>
+            ) : (
+              getText(language, 'register')
+            )}
+          </motion.button>
         </form>
-
-        {/* Time Slots Section */}
-        <div className="time-slots-section">
-          <h3>Available Time Slots</h3>
-          
-          {loadingSlots ? (
-            <div className="loading-slots">
-              <div className="loading"></div>
-              <p>Loading available time slots...</p>
-            </div>
-          ) : (
-            <div className="time-slots-grid">
-              {timeSlots.map(slot => {
-                const status = getSlotStatus(slot);
-                const isSelected = selectedSlot?.id === slot.id;
-                
-                return (
-                  <motion.div
-                    key={slot.id}
-                    className={`time-slot ${getSlotStatusColor(status)} ${isSelected ? 'selected' : ''}`}
-                    whileHover={{ scale: status === 'available' ? 1.02 : 1 }}
-                    whileTap={{ scale: status === 'available' ? 0.98 : 1 }}
-                    onClick={() => status === 'available' && setSelectedSlot(slot)}
-                  >
-                    <div className="slot-time">{slot.time}</div>
-                    <div className="slot-status">
-                      {status === 'available' && `${slot.maxPatients - slot.currentBookings} spots left`}
-                      {status === 'full' && 'Full'}
-                      {status === 'booked' && 'Booked'}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-
-          {selectedSlot && (
-            <motion.div 
-              className="selected-slot-info"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <p>Selected: <strong>{selectedSlot.time}</strong></p>
-            </motion.div>
-          )}
-        </div>
-
-        <motion.button 
-          type="submit" 
-          className="btn"
-          disabled={loading || !selectedSlot}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          {loading ? (
-            <span className="loading-inline">
-              <span className="loading"></span>
-              {getText(language, 'loading')}
-            </span>
-          ) : (
-            'Book Appointment'
-          )}
-        </motion.button>
 
         <div className="register-footer">
           <motion.button
@@ -302,13 +342,6 @@ function Register() {
           >
             {language.toUpperCase()}
           </motion.button>
-
-          <div className="login-link">
-            <p>Already have an appointment?</p>
-            <Link to="/login" className="btn btn-secondary btn-small">
-              Doctor Login
-            </Link>
-          </div>
         </div>
       </motion.div>
 
@@ -319,13 +352,13 @@ function Register() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
         >
-          <h3>Appointment Confirmed!</h3>
+          <h3>{getText(language, 'appointmentConfirmed')}</h3>
           <div className="confirmation-details">
-            <p><strong>Queue Number:</strong> {registeredPatient.queueNumber}</p>
-            <p><strong>Department:</strong> {formData.department}</p>
-            <p><strong>Date:</strong> {formData.day}</p>
-            <p><strong>Time:</strong> {registeredPatient.timeSlot?.time}</p>
-            <p><strong>Status:</strong> {registeredPatient.status}</p>
+            <p><strong>{getText(language, 'queueNumber')}:</strong> {registeredPatient.queueNumber}</p>
+            <p><strong>{getText(language, 'department')}:</strong> {formData.department}</p>
+            <p><strong>{getText(language, 'day')}:</strong> {formData.day}</p>
+            <p><strong>{getText(language, 'time')}:</strong> {registeredPatient.timeSlot?.time}</p>
+            <p><strong>{getText(language, 'status')}:</strong> {registeredPatient.status}</p>
           </div>
           <Link to="/" className="btn btn-primary">
             Back to Home

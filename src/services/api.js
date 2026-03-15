@@ -1,26 +1,33 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 
 class ApiService {
   async request(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
+    const token = localStorage.getItem('token');
     
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
       ...options,
+      headers,
     };
 
     try {
       const response = await fetch(url, config);
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        const error = await response.json();
+        throw new Error(error.message || 'Something went wrong');
       }
-      
-      return await response.json();
+
+      return response.json();
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
@@ -34,10 +41,14 @@ class ApiService {
 
   // Authentication endpoints
   async loginDoctor(credentials) {
-    return this.request('/api/login-doctor', {
+    const data = await this.request('/api/login-doctor', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
+    if (data.success && data.token) {
+      localStorage.setItem('token', data.token);
+    }
+    return data;
   }
 
   // Time slot endpoints

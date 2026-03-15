@@ -9,6 +9,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Doctor from './components/Doctor';
 import Patient from './components/Patient';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 const pageVariants = {
   initial: {
@@ -54,46 +55,48 @@ function App() {
   const closeHelpModal = () => setIsHelpModalOpen(false);
 
   return (
-    <div className="App">
-      <Navbar onHelpClick={openHelpModal} />
-      
-      <AnimatePresence mode="wait">
-        <Routes>
-          <Route path="/" element={
-            <PageWrapper>
-              <Home />
-            </PageWrapper>
-          } />
-          <Route path="/login" element={
-            <PageWrapper>
-              <Login />
-            </PageWrapper>
-          } />
-          <Route path="/register" element={
-            <PageWrapper>
-              <Register />
-            </PageWrapper>
-          } />
-          <Route path="/doctor" element={
-            <PageWrapper>
-              <Doctor />
-            </PageWrapper>
-          } />
-          <Route path="/patient" element={
-            <PageWrapper>
-              <Patient />
-            </PageWrapper>
-          } />
-        </Routes>
-      </AnimatePresence>
+    <LanguageProvider>
+      <div className="App">
+        <Navbar onHelpClick={openHelpModal} />
+        
+        <AnimatePresence mode="wait">
+          <Routes>
+            <Route path="/" element={
+                  <PageWrapper>
+                    <Home />
+                  </PageWrapper>
+                } />
+            <Route path="/login" element={
+                  <PageWrapper>
+                    <Login />
+                  </PageWrapper>
+                } />
+            <Route path="/register" element={
+                  <PageWrapper>
+                    <Register />
+                  </PageWrapper>
+                } />
+            <Route path="/doctor" element={
+                  <PageWrapper>
+                    <Doctor />
+                  </PageWrapper>
+                } />
+            <Route path="/patient" element={
+                  <PageWrapper>
+                    <Patient />
+                  </PageWrapper>
+                } />
+          </Routes>
+        </AnimatePresence>
 
-      <HelpModal 
-        isOpen={isHelpModalOpen} 
-        onClose={closeHelpModal} 
-      />
-      
-      <Footer />
-    </div>
+        <HelpModal 
+          isOpen={isHelpModalOpen} 
+          onClose={closeHelpModal} 
+        />
+        
+        <Footer />
+      </div>
+    </LanguageProvider>
   );
 }
 

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Menu, X, Phone, User, Stethoscope, Calendar } from 'lucide-react';
-import { useLanguage } from '../../hooks/useLanguage';
-import { getText } from '../../utils/helpers';
+import { Menu, X, Phone, User, Stethoscope, Calendar, Globe } from 'lucide-react';
+import { useLanguageContext } from '../../contexts/LanguageContext';
+import { getText, LANGUAGES } from '../../utils/helpers';
 
 const Navbar = ({ onHelpClick }) => {
-  const { language, switchLanguage } = useLanguage();
+  const { language, switchLanguage } = useLanguageContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -19,7 +19,7 @@ const Navbar = ({ onHelpClick }) => {
       ]
     : [
         { name: getText(language, 'home'), path: '/', icon: Calendar },
-        { name: 'Book Appointment', path: '/register', icon: User },
+        { name: getText(language, 'register'), path: '/register', icon: User },
         { name: getText(language, 'doctorLogin'), path: '/login', icon: Stethoscope },
       ];
 
@@ -64,14 +64,44 @@ const Navbar = ({ onHelpClick }) => {
           </div>
 
           <div className="navbar-actions">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={switchLanguage}
-              className="lang-btn"
-            >
-              {language.toUpperCase()}
-            </motion.button>
+            <div className="language-selector">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => switchLanguage('en')}
+                className={`lang-btn ${language === 'en' ? 'active' : ''}`}
+                title="English"
+              >
+                <span className="flag-icon">🇺🇸</span>
+                <span className="lang-text">EN</span>
+              </motion.button>
+              
+              <div className="lang-separator">|</div>
+              
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => switchLanguage('ru')}
+                className={`lang-btn ${language === 'ru' ? 'active' : ''}`}
+                title="Русский"
+              >
+                <span className="flag-icon">🇷🇺</span>
+                <span className="lang-text">RU</span>
+              </motion.button>
+              
+              <div className="lang-separator">|</div>
+              
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => switchLanguage('kg')}
+                className={`lang-btn ${language === 'kg' ? 'active' : ''}`}
+                title="Кыргызча"
+              >
+                <span className="flag-icon">🇰🇬</span>
+                <span className="lang-text">KG</span>
+              </motion.button>
+            </div>
 
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -123,14 +153,44 @@ const Navbar = ({ onHelpClick }) => {
           })}
 
           <div className="mobile-actions">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={switchLanguage}
-              className="mobile-lang-btn"
-            >
-              {language.toUpperCase()}
-            </motion.button>
+            <div className="mobile-language-selector">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => switchLanguage('en')}
+                className={`mobile-lang-btn ${language === 'en' ? 'active' : ''}`}
+                title="English"
+              >
+                <span className="flag-icon">🇺🇸</span>
+                <span className="lang-text">EN</span>
+              </motion.button>
+              
+              <div className="mobile-lang-separator">|</div>
+              
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => switchLanguage('ru')}
+                className={`mobile-lang-btn ${language === 'ru' ? 'active' : ''}`}
+                title="Русский"
+              >
+                <span className="flag-icon">🇷🇺</span>
+                <span className="lang-text">RU</span>
+              </motion.button>
+              
+              <div className="mobile-lang-separator">|</div>
+              
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => switchLanguage('kg')}
+                className={`mobile-lang-btn ${language === 'kg' ? 'active' : ''}`}
+                title="Кыргызча"
+              >
+                <span className="flag-icon">🇰🇬</span>
+                <span className="lang-text">KG</span>
+              </motion.button>
+            </div>
 
             <motion.button
               whileHover={{ scale: 1.05 }}

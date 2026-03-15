@@ -1,8 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 const app = express();
+const JWT_SECRET = process.env.JWT_SECRET || "clinic-secret-key-2024";
 
 // Middleware
 app.use(cors());
@@ -15,8 +18,20 @@ let timeSlots = [];
 let appointments = [];
 
 // Initialize default data
-const initializeData = () => {
+const initializeData = async () => {
   const departments = ["General", "Pediatrics", "Dentistry"];
+  
+  // Create a mock doctor
+  const hashedDiscoveryPassword = await bcrypt.hash("1234", 10);
+  doctors.push({
+    id: "doc1",
+    username: "doctor",
+    password: hashedDiscoveryPassword,
+    name: "Dr. John Doe",
+    department: "General",
+    email: "doctor@clinic.kg"
+  });
+
   const timeRanges = [
     "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
     "14:00", "14:30", "15:00", "15:30", "16:00", "16:30"
@@ -40,7 +55,8 @@ const initializeData = () => {
   console.log(`⏰ Created ${timeSlots.length} time slots`);
 };
 
-initializeData();
+// Call initialize
+initializeData().catch(err => console.error('Failed to initialize data:', err));
 
 // Utility functions
 const generateQueueNumber = (department, day) => {
@@ -60,27 +76,55 @@ const calculatePosition = (patientId, department, day) => {
   return departmentPatients.filter(p => p.queueNumber <= patient.queueNumber).length;
 };
 
+// Authentication middleware
+const authenticateDoctor = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.doctor = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid or expired token" });
+  }
+};
+
 // API routes
 // Authentication endpoints
-app.post("/api/login-doctor", (req, res) => {
+app.post("/api/login-doctor", async (req, res) => {
   try {
-    const { username, password, department } = req.body;
+    const { username, password } = req.body;
     
-    // For demo purposes - in production, use email instead of username
-    if (username === "doctor" && password === "1234") {
-      const doctor = {
-        id: 1,
-        name: "Dr. John Doe",
-        department: department || "General",
-        email: "doctor@clinic.kg"
-      };
-      res.json({ 
-        success: true, 
-        doctor
-      });
-    } else {
-      res.status(401).json({ success: false, message: "Invalid credentials" });
+    const doctor = doctors.find(d => d.username === username);
+    if (!doctor) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
+
+    const isPasswordValid = await bcrypt.compare(password, doctor.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { id: doctor.id, username: doctor.username, department: doctor.department },
+      JWT_SECRET,
+      { expiresIn: "8h" }
+    );
+
+    res.json({ 
+      success: true, 
+      token,
+      doctor: {
+        id: doctor.id,
+        name: doctor.name,
+        department: doctor.department,
+        email: doctor.email
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: "Login failed" });
   }
@@ -106,9 +150,15 @@ app.get("/api/timeslots", (req, res) => {
   }
 });
 
-app.post("/api/timeslots", (req, res) => {
+app.post("/api/timeslots", authenticateDoctor, (req, res) => {
   try {
     const { department, time, day, maxPatients = 4 } = req.body;
+    
+    // Check if slot already exists
+    const existingSlot = timeSlots.find(s => s.department === department && s.time === time && s.day === day);
+    if (existingSlot) {
+      return res.status(400).json({ success: false, message: "Time slot already exists" });
+    }
     
     const newSlot = {
       id: Date.now() + Math.random(),
@@ -129,12 +179,12 @@ app.post("/api/timeslots", (req, res) => {
   }
 });
 
-app.put("/api/timeslots/:id", (req, res) => {
+app.put("/api/timeslots/:id", authenticateDoctor, (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
     
-    const slotIndex = timeSlots.findIndex(s => s.id === id);
+    const slotIndex = timeSlots.findIndex(s => s.id === parseFloat(id) || s.id === id);
     
     if (slotIndex === -1) {
       return res.status(404).json({ success: false, message: "Time slot not found" });
@@ -148,14 +198,19 @@ app.put("/api/timeslots/:id", (req, res) => {
   }
 });
 
-app.delete("/api/timeslots/:id", (req, res) => {
+app.delete("/api/timeslots/:id", authenticateDoctor, (req, res) => {
   try {
     const { id } = req.params;
     
-    const slotIndex = timeSlots.findIndex(s => s.id === id);
+    const slotIndex = timeSlots.findIndex(s => s.id === parseFloat(id) || s.id === id);
     
     if (slotIndex === -1) {
       return res.status(404).json({ success: false, message: "Time slot not found" });
+    }
+
+    // Check if there are active bookings
+    if (timeSlots[slotIndex].currentBookings > 0) {
+      return res.status(400).json({ success: false, message: "Cannot delete slot with active bookings" });
     }
     
     timeSlots.splice(slotIndex, 1);
