@@ -17,6 +17,14 @@ let doctors = [];
 let timeSlots = [];
 let appointments = [];
 
+const getLocalDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 // Initialize default data
 const initializeData = async () => {
   const departments = ["General", "Pediatrics", "Dentistry"];
@@ -43,7 +51,7 @@ const initializeData = async () => {
         id: Date.now() + Math.random(),
         department,
         time,
-        day: new Date().toISOString().slice(0, 10),
+        day: getLocalDateString(),
         isAvailable: true,
         maxPatients: 4,
         currentBookings: 0
@@ -396,7 +404,7 @@ app.post("/api/call-next", (req, res) => {
 app.get("/api/stats", (req, res) => {
   try {
     const { day } = req.query;
-    const targetDay = day || new Date().toISOString().slice(0, 10);
+    const targetDay = day || getLocalDateString();
     
     const dayPatients = patients.filter(p => p.day === targetDay);
     const stats = {

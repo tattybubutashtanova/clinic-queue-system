@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import apiService from '../services/api';
 import { useLanguageContext } from '../contexts/LanguageContext';
 import { useInterval } from '../hooks/useInterval';
-import { getText, getCurrentDate, validatePatientForm } from '../utils/helpers';
+import { getText, getCurrentDate, validatePatientForm, sortPatientsByTime } from '../utils/helpers';
 import { DEPARTMENTS, DEPARTMENT_TRANSLATIONS, UPDATE_INTERVAL } from '../utils/constants';
 
 function Register() {
