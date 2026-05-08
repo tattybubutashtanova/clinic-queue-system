@@ -17,11 +17,19 @@ let doctors = [];
 let timeSlots = [];
 let appointments = [];
 
-const getLocalDateString = () => {
+const getKGDateString = (daysOffset = 0) => {
+  // Kyrgyzstan is UTC+6
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const kgTime = new Date(utc + (3600000 * 6));
+  
+  if (daysOffset !== 0) {
+    kgTime.setDate(kgTime.getDate() + daysOffset);
+  }
+  
+  const year = kgTime.getFullYear();
+  const month = String(kgTime.getMonth() + 1).padStart(2, "0");
+  const day = String(kgTime.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
@@ -45,22 +53,28 @@ const initializeData = async () => {
     "14:00", "14:30", "15:00", "15:30", "16:00", "16:30"
   ];
   
+  // Create slots for today and tomorrow
+  const days = [0, 1]; // 0 for today, 1 for tomorrow
+  
   departments.forEach(department => {
-    timeRanges.forEach(time => {
-      timeSlots.push({
-        id: Date.now() + Math.random(),
-        department,
-        time,
-        day: getLocalDateString(),
-        isAvailable: true,
-        maxPatients: 4,
-        currentBookings: 0
+    days.forEach(offset => {
+      const dateStr = getKGDateString(offset);
+      timeRanges.forEach(time => {
+        timeSlots.push({
+          id: `${Date.now()}-${Math.random()}`,
+          department,
+          time,
+          day: dateStr,
+          isAvailable: true,
+          maxPatients: 4,
+          currentBookings: 0
+        });
       });
     });
   });
   
   console.log('📋 Initialized in-memory storage');
-  console.log(`⏰ Created ${timeSlots.length} time slots`);
+  console.log(`⏰ Created ${timeSlots.length} time slots for today and tomorrow`);
 };
 
 // Call initialize
@@ -404,7 +418,7 @@ app.post("/api/call-next", (req, res) => {
 app.get("/api/stats", (req, res) => {
   try {
     const { day } = req.query;
-    const targetDay = day || getLocalDateString();
+    const targetDay = day || getKGDateString();
     
     const dayPatients = patients.filter(p => p.day === targetDay);
     const stats = {
