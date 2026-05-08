@@ -13,8 +13,29 @@ export const getText = (lang, key) => {
 };
 
 // Date utilities
+export const getKGTime = () => {
+  // Kyrgyzstan is UTC+6
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (3600000 * 6));
+};
+
 export const getCurrentDate = () => {
-  return new Date().toISOString().slice(0, 10);
+  return getKGTime().toISOString().slice(0, 10);
+};
+
+export const isTimeSlotPast = (slotDate, slotTime) => {
+  const kgNow = getKGTime();
+  const today = kgNow.toISOString().slice(0, 10);
+  
+  // If slot is for a future day, it's not past
+  if (slotDate > today) return false;
+  // If slot is for a past day, it is past
+  if (slotDate < today) return true;
+  
+  // If same day, compare HH:MM
+  const currentHHMM = kgNow.toTimeString().slice(0, 5);
+  return slotTime < currentHHMM;
 };
 
 export const formatDate = (dateString) => {

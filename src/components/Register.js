@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import apiService from '../services/api';
 import { useLanguageContext } from '../contexts/LanguageContext';
 import { useInterval } from '../hooks/useInterval';
-import { getText, getCurrentDate, validatePatientForm, sortPatientsByTime } from '../utils/helpers';
+import { getText, getCurrentDate, validatePatientForm, isTimeSlotPast, sortPatientsByTime } from '../utils/helpers';
 import { DEPARTMENTS, DEPARTMENT_TRANSLATIONS, UPDATE_INTERVAL } from '../utils/constants';
 
 function Register() {
@@ -45,8 +45,10 @@ function Register() {
         day: formData.day,
         department: formData.department
       });
+      // Sort and filter out past slots
       const sortedSlots = sortPatientsByTime(data.timeSlots || []);
-      setTimeSlots(sortedSlots);
+      const visibleSlots = sortedSlots.filter(slot => !isTimeSlotPast(formData.day, slot.time));
+      setTimeSlots(visibleSlots);
     } catch (err) {
       console.error('Failed to load time slots:', err);
     } finally {
