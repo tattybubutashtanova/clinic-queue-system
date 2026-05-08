@@ -455,32 +455,21 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Static file serving (after API routes)
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'build')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'build', 'index.html'));
-  });
-} else {
-  // In development, serve static files from public directory
-  app.use(express.static(path.join(__dirname, "public")));
-  
-  // Serve index.html for specific React routes only
-  app.get(['/', '/login', '/register', '/doctor', '/patient'], (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-  });
-}
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ success: false, message: "Internal server error" });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🏥 Naryn Clinic Queue Server running on http://localhost:${PORT}`);
-  console.log(`📊 API Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`⏰ Time Slots initialized: ${timeSlots.length} slots created`);
-});
+// For Vercel serverless deployment
+module.exports = app;
+
+// For local development
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`🏥 Naryn Clinic Queue Server running on http://localhost:${PORT}`);
+    console.log(`📊 API Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`⏰ Time Slots initialized: ${timeSlots.length} slots created`);
+  });
+}
