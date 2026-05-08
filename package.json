@@ -2,17 +2,19 @@
   "name": "clinic-queue-system",
   "version": "1.0.0",
   "main": "index.js",
+  "homepage": ".",
   "scripts": {
     "start": "node server.js",
     "dev": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "vercel": "npm run build"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Naryn Clinic Queue System - Modern healthcare queue management with real-time updates",
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
     "bcryptjs": "^3.0.3",
